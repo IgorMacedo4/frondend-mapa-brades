@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bradesco — Acesso</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --red: #cc092f; --red-dark: #a00724;
+  --bg: #f0f2f5; --surface: #fff;
+  --border: #dde1e7; --text: #1a1a2e; --muted: #6b7280;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-wrap {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.1);
+  padding: 36px 32px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.brand-icon {
+  width: 42px; height: 42px;
+  background: var(--red);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 1.2rem; color: #fff;
+  box-shadow: 0 2px 8px rgba(204,9,47,.35);
+  flex-shrink: 0;
+}
+
+.brand-text strong { display: block; font-size: 1rem; font-weight: 700; }
+.brand-text small { font-size: .75rem; color: var(--muted); }
+
+h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 6px; }
+.subtitulo { font-size: .84rem; color: var(--muted); margin-bottom: 24px; }
+
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.field label {
+  font-size: .72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--muted);
+}
+.field input {
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  font-size: .9rem;
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.field input:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(204,9,47,.1);
+}
+
+.erro {
+  background: #fde8ec;
+  color: var(--red-dark);
+  border: 1px solid #f5c2cc;
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: .84rem;
+  margin-bottom: 14px;
+}
+.erro.hidden { display: none; }
+
+.btn-login {
+  width: 100%;
+  padding: 11px;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: .92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+  margin-top: 6px;
+}
+.btn-login:hover:not(:disabled) { background: var(--red-dark); }
+.btn-login:disabled { opacity: .6; cursor: not-allowed; }
+
+.rodape {
+  text-align: center;
+  margin-top: 22px;
+  font-size: .74rem;
+  color: var(--muted);
+}
+
+.loading { display: none; text-align: center; padding: 20px; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+  <div class="loading" id="loading">Verificando sessao...</div>
+
+  <div class="login-card" id="card-login">
+    <div class="brand">
+      <div class="brand-icon">B</div>
+      <div class="brand-text">
+        <strong>Bradesco</strong>
+        <small>Gestao Interna</small>
+      </div>
+    </div>
+
+    <h2>Acesse sua conta</h2>
+    <p class="subtitulo">Use o email e senha cadastrados pelo administrador.</p>
+
+    <form id="form-login" autocomplete="on">
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="senha" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <div class="erro hidden" id="msg-erro"></div>
+      <button type="submit" class="btn-login" id="btn-entrar">Entrar</button>
+    </form>
+  </div>
+
+  <div class="rodape">Uso interno — acesso restrito</div>
+</div>
+
+<script>
+const SUPABASE_URL     = 'https://gxslakynjjwtbyluilsb.supabase.co';
+const SUPABASE_ANON    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4c2xha3luamp3dGJ5bHVpbHNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwMzM5NTcsImV4cCI6MjA5MjYwOTk1N30.hCmC1UIlVfdN1cuss1z8NJXC6M4rUJTBz2MAj8zlfWQ';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// Verificar se ja esta logado
+document.getElementById('loading').style.display = 'block';
+document.getElementById('card-login').style.display = 'none';
+
+sb.auth.getSession().then(({ data: { session } }) => {
+  document.getElementById('loading').style.display = 'none';
+  if (session) {
+    window.location.href = 'sistema.html';
+  } else {
+    document.getElementById('card-login').style.display = 'block';
+  }
+});
+
+document.getElementById('form-login').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById('email').value.trim();
+  const senha  = document.getElementById('senha').value;
+  const btn    = document.getElementById('btn-entrar');
+  const erro   = document.getElementById('msg-erro');
+
+  btn.textContent = 'Entrando...';
+  btn.disabled = true;
+  erro.classList.add('hidden');
+
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+
+  if (error) {
+    erro.textContent = 'Email ou senha incorretos. Tente novamente.';
+    erro.classList.remove('hidden');
+    btn.textContent = 'Entrar';
+    btn.disabled = false;
+  } else {
+    window.location.href = 'sistema.html';
+  }
+});
+</script>
+</body>
+</html>

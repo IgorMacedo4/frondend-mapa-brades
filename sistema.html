@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bradesco | Sistema de Gestao</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --red: #cc092f; --red-dark: #a00724; --red-light: #fde8ec;
+  --bg: #f0f2f5; --surface: #fff;
+  --border: #dde1e7; --text: #1a1a2e; --muted: #6b7280;
+  --sidebar-w: 248px; --radius: 8px;
+  --shadow: 0 1px 4px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.14);
+}
+
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+/* ── SIDEBAR ── */
+.sidebar { width: var(--sidebar-w); min-height: 100vh; background: #141427; color: #fff; display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
+.sidebar-brand { padding: 20px 18px 16px; border-bottom: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 12px; }
+.brand-icon { width: 38px; height: 38px; background: var(--red); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.15rem; flex-shrink: 0; box-shadow: 0 2px 8px rgba(204,9,47,.4); }
+.brand-text strong { display: block; font-size: .95rem; font-weight: 700; }
+.brand-text small { font-size: .72rem; opacity: .5; }
+.sidebar-nav { padding: 10px 0; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 18px; color: rgba(255,255,255,.55); text-decoration: none; font-size: .875rem; font-weight: 500; transition: all .15s; cursor: pointer; border-left: 3px solid transparent; user-select: none; }
+.nav-item:hover { color: rgba(255,255,255,.9); background: rgba(255,255,255,.05); }
+.nav-item.active { color: #fff; background: rgba(204,9,47,.2); border-left-color: var(--red); }
+.nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: .65rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+.sidebar-footer { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,.06); }
+.user-info { font-size: .72rem; color: rgba(255,255,255,.4); margin-bottom: 8px; word-break: break-all; }
+.btn-logout { width: 100%; padding: 7px 12px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 6px; color: rgba(255,255,255,.6); font-size: .78rem; cursor: pointer; transition: all .15s; }
+.btn-logout:hover { background: rgba(204,9,47,.3); color: #fff; border-color: transparent; }
+
+/* ── MAIN ── */
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── PAGES ── */
+.page { display: none; flex-direction: column; flex: 1; }
+.page.active { display: flex; }
+.page-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 18px 28px; }
+.page-header h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
+.page-header p { font-size: .8rem; color: var(--muted); }
+.page-body { padding: 20px 28px; flex: 1; }
+
+/* ── CARD ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+/* ── FILTERS ── */
+.filters-card { padding: 14px 18px; margin-bottom: 14px; }
+.filters-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: .7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.field select, .field input[type=text], .field input[type=number] { padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: .875rem; background: #fff; min-width: 140px; transition: border-color .15s, box-shadow .15s; }
+.field select:focus, .field input:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(204,9,47,.1); }
+
+/* ── BUTTONS ── */
+.btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: .85rem; font-weight: 600; cursor: pointer; transition: background .15s, opacity .15s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--red); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--red-dark); }
+.btn-secondary { background: #fff; color: var(--text); border: 1.5px solid var(--border); }
+.btn-secondary:hover { background: var(--bg); }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+.btn-sm { padding: 5px 10px; font-size: .78rem; }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+thead { background: #f8f9fb; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 var(--border); }
+th { padding: 10px 12px; text-align: left; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .45px; color: var(--muted); white-space: nowrap; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafbfd; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .71rem; font-weight: 700; }
+.badge-red { background: var(--red-light); color: var(--red-dark); }
+.badge-gray { background: #f3f4f6; color: #374151; }
+.badge-yellow { background: #fef3c7; color: #92400e; }
+
+/* ── SORTEIO BAR ── */
+.sorteio-bar { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--border); background: #f8f9fb; border-radius: 0 0 var(--radius) var(--radius); flex-wrap: wrap; }
+.sorteio-bar label { font-size: .82rem; font-weight: 600; color: var(--muted); }
+.sorteio-bar input[type=number] { width: 90px; padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: .875rem; background: #fff; }
+.sorteio-bar input[type=number]:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(204,9,47,.1); }
+.disp-chip { margin-left: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: .78rem; color: var(--muted); }
+.disp-chip strong { color: var(--text); }
+
+/* ── PROGRESS BAR ── */
+.prog-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+.prog-bar-fill { height: 100%; background: var(--red); border-radius: 2px; }
+
+/* ── MODAL ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.hidden { display: none; }
+.modal { background: var(--surface); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.22); width: 100%; max-width: 720px; max-height: 88vh; display: flex; flex-direction: column; }
+.modal-lg { max-width: 880px; }
+.modal-sm { max-width: 420px; }
+.modal-header { padding: 18px 22px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.modal-header h3 { font-size: 1rem; font-weight: 700; }
+.modal-header .meta { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+.modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--muted); line-height: 1; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+.modal-close:hover { color: var(--text); background: var(--bg); }
+.modal-body { padding: 16px 22px; overflow-y: auto; flex: 1; }
+.modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.resultado-txt { width: 100%; height: 320px; font-family: 'Consolas', 'Courier New', monospace; font-size: .76rem; line-height: 1.65; padding: 12px; border: 1.5px solid var(--border); border-radius: 6px; resize: none; background: #f8f9fb; color: var(--text); }
+.lista-viewer { width: 100%; height: 400px; font-family: 'Consolas', 'Courier New', monospace; font-size: .74rem; line-height: 1.7; padding: 12px; border: 1.5px solid var(--border); border-radius: 6px; resize: vertical; background: #f8f9fb; color: var(--text); }
+
+/* ── CHECKBOX ── */
+.check-row { display: flex; align-items: center; gap: 8px; font-size: .84rem; cursor: pointer; }
+.check-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--red); cursor: pointer; }
+
+/* ── STATS ── */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-card { padding: 16px 20px; border-radius: var(--radius); }
+.stat-card .stat-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 6px; }
+.stat-card .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--text); }
+.stat-card .stat-sub { font-size: .74rem; color: var(--muted); margin-top: 2px; }
+
+/* ── LIST TOPBAR ── */
+.list-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.list-topbar h3 { font-size: .95rem; font-weight: 700; }
+
+/* ── EMPTY ── */
+.empty-state { text-align: center; padding: 52px 20px; color: var(--muted); }
+.empty-state p { font-size: .9rem; }
+
+/* ── SPINNER ── */
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-dark { border-color: rgba(0,0,0,.1); border-top-color: var(--red); }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a2e; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: .85rem; box-shadow: var(--shadow-md); z-index: 999; opacity: 0; transform: translateY(8px); transition: all .22s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ════════════ SIDEBAR ════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">B</div>
+    <div class="brand-text"><strong>Bradesco</strong><small>Gestao Interna</small></div>
+  </div>
+  <nav class="sidebar-nav">
+    <a class="nav-item active" href="javascript:void(0)" onclick="navigate('sorteio',this)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+      Sorteio de Contatos
+    </a>
+    <a class="nav-item" href="javascript:void(0)" onclick="navigate('listas',this)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Lista On
+      <span class="nav-badge" id="badge-listas">—</span>
+    </a>
+    <a class="nav-item" href="javascript:void(0)" onclick="navigate('trabalhadas',this)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Agencias Trabalhadas
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info" id="user-email">—</div>
+    <button class="btn-logout" onclick="logout()">Sair da conta</button>
+  </div>
+</aside>
+
+<!-- ════════════ MAIN ════════════ -->
+<div class="main">
+
+  <!-- PAGE 1: SORTEIO -->
+  <div class="page active" id="page-sorteio">
+    <div class="page-header">
+      <h2>Sorteio de Contatos</h2>
+      <p>Filtre por estado, cidade ou agencia e sorteie contatos das listas ativas</p>
+    </div>
+    <div class="page-body">
+      <div class="card filters-card">
+        <div class="filters-row">
+          <div class="field">
+            <label>Estado (UF)</label>
+            <select id="fil-uf" onchange="onFilterUF()"><option value="">Todos</option></select>
+          </div>
+          <div class="field">
+            <label>Cidade</label>
+            <select id="fil-cidade" onchange="onFilterCidade()"><option value="">Todas</option></select>
+          </div>
+          <div class="field">
+            <label>DDD</label>
+            <select id="fil-ddd" onchange="applyFilters()"><option value="">Todos</option></select>
+          </div>
+          <div class="field">
+            <label>Agencia especifica</label>
+            <input type="text" id="fil-ag" placeholder="Codigo ex: 0187" oninput="applyFilters()" style="min-width:160px">
+          </div>
+          <button class="btn btn-secondary" onclick="resetFilters()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
+            Limpar
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div style="font-size:.82rem;color:var(--muted)">
+            Agencias: <strong id="ag-count" style="color:var(--text)">—</strong>
+            &nbsp;·&nbsp; Total na lista: <strong id="ct-total" style="color:var(--text)">—</strong>
+            &nbsp;·&nbsp; Disponiveis: <strong id="ct-disp" style="color:#059669">—</strong>
+          </div>
+          <div style="font-size:.78rem;color:var(--muted)" id="filter-label"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Agencia</th><th>Nome</th><th>Cidade</th><th>UF</th><th>DDD</th>
+                <th>Na lista</th><th>Disponiveis</th><th>Usados</th>
+              </tr>
+            </thead>
+            <tbody id="ag-tbody"></tbody>
+          </table>
+        </div>
+        <div id="ag-pagination" style="display:none;padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fafbfc">
+          <button class="btn btn-secondary btn-sm" id="pg-prev" onclick="changePage(-1)">&#8592; Anterior</button>
+          <span id="pg-label" style="font-size:.82rem;color:var(--muted)"></span>
+          <button class="btn btn-secondary btn-sm" id="pg-next" onclick="changePage(1)">Proxima &#8594;</button>
+          <span style="margin-left:auto;font-size:.78rem;color:var(--muted)" id="pg-range"></span>
+        </div>
+        <div class="sorteio-bar">
+          <label for="qtd-input">Quantidade:</label>
+          <input type="number" id="qtd-input" min="1" placeholder="Ex: 10">
+          <button class="btn btn-primary" id="btn-sortear" onclick="sortear()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+            Sortear
+          </button>
+          <div class="disp-chip" id="disp-chip">Carregando...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 2: LISTA ON -->
+  <div class="page" id="page-listas">
+    <div class="page-header"><h2>Lista On</h2><p>Gerencie as listas de contatos: upload, visualizacao, edicao e exclusao</p></div>
+    <div class="page-body">
+      <div class="list-topbar">
+        <h3 id="listas-count-label">Carregando...</h3>
+        <label class="btn btn-primary" style="cursor:pointer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          Upload nova lista
+          <input type="file" accept=".txt" style="display:none" onchange="handleUpload(event)">
+        </label>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome da lista</th><th>Data upload</th><th>Contatos</th><th>Agencias</th><th>Usados</th><th>Acoes</th></tr></thead>
+            <tbody id="listas-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 3: TRABALHADAS -->
+  <div class="page" id="page-trabalhadas">
+    <div class="page-header"><h2>Agencias Trabalhadas</h2><p>Historico de agencias que ja tiveram contatos sorteados e marcados como usados</p></div>
+    <div class="page-body">
+      <div class="stat-grid">
+        <div class="card stat-card"><div class="stat-label">Agencias trabalhadas</div><div class="stat-value" id="stat-ags">—</div><div class="stat-sub">no historico</div></div>
+        <div class="card stat-card"><div class="stat-label">Contatos usados</div><div class="stat-value" id="stat-cts">—</div><div class="stat-sub">total de sorteios</div></div>
+        <div class="card stat-card"><div class="stat-label">Ultimo sorteio</div><div class="stat-value" id="stat-last" style="font-size:1.1rem;margin-top:4px">—</div><div class="stat-sub" id="stat-last-sub">—</div></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Agencia</th><th>Nome</th><th>Cidade</th><th>UF</th><th>Contatos usados</th><th>Data</th></tr></thead>
+            <tbody id="trab-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- MODAL: Sorteio resultado -->
+<div class="modal-overlay hidden" id="modal-sorteio">
+  <div class="modal">
+    <div class="modal-header">
+      <div><h3>Resultado do Sorteio</h3><div class="meta" id="sorteio-meta"></div></div>
+      <button class="modal-close" onclick="closeModal('modal-sorteio')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:.8rem;color:var(--muted)">Contatos sorteados no formato original da lista</span>
+        <button class="btn btn-secondary btn-sm" onclick="copiarResultado()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copiar tudo
+        </button>
+      </div>
+      <textarea class="resultado-txt" id="sorteio-txt" readonly></textarea>
+    </div>
+    <div class="modal-footer">
+      <label class="check-row">
+        <input type="checkbox" id="chk-marcar">
+        <span>Marcar esses contatos como <strong>usados</strong>, nao apareceram nos proximos sorteios</span>
+      </label>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="closeModal('modal-sorteio')">Fechar</button>
+        <button class="btn btn-primary" id="btn-confirmar" onclick="confirmarSorteio()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Ver lista -->
+<div class="modal-overlay hidden" id="modal-lista-view">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div><h3 id="modal-lista-nome">Lista</h3><div class="meta" id="modal-lista-meta"></div></div>
+      <button class="modal-close" onclick="closeModal('modal-lista-view')">×</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="lista-viewer" id="modal-lista-txt" readonly></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="copiarLista()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copiar lista
+      </button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-lista-view')" style="margin-left:auto">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Editar nome -->
+<div class="modal-overlay hidden" id="modal-edit-nome">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3>Editar nome da lista</h3><button class="modal-close" onclick="closeModal('modal-edit-nome')">×</button></div>
+    <div class="modal-body">
+      <div class="field" style="width:100%">
+        <label>Novo nome</label>
+        <input type="text" id="input-novo-nome" style="min-width:unset;width:100%" placeholder="Ex: Lista BH Maio 2026">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-nome')" style="margin-left:auto">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNomeLista()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Upload nova lista -->
+<div class="modal-overlay hidden" id="modal-upload">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h3>Upload de nova lista</h3><button class="modal-close" onclick="closeModal('modal-upload')">×</button></div>
+    <div class="modal-body">
+      <div class="field" style="width:100%;margin-bottom:14px">
+        <label>Nome da lista</label>
+        <input type="text" id="upload-nome" style="min-width:unset;width:100%" placeholder="Ex: Lista BH Maio 2026">
+      </div>
+      <div id="upload-arquivo-nome" style="font-size:.82rem;color:var(--muted)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-upload')" style="margin-left:auto">Cancelar</button>
+      <button class="btn btn-primary" id="btn-upload-confirmar" onclick="confirmarUpload()">Enviar lista</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+const SUPABASE_URL  = 'https://gxslakynjjwtbyluilsb.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4c2xha3luamp3dGJ5bHVpbHNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwMzM5NTcsImV4cCI6MjA5MjYwOTk1N30.hCmC1UIlVfdN1cuss1z8NJXC6M4rUJTBz2MAj8zlfWQ';
+
+// URL do backend — trocar pelo IP/dominio da VPS apos deploy
+const API = '/api';
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let currentToken = null;
+
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return false; }
+  currentToken = session.access_token;
+  document.getElementById('user-email').textContent = session.user.email;
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') { window.location.href = 'index.html'; return; }
+    if (session) currentToken = session.access_token;
+  });
+  return true;
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+// ═══════════════════════════════════════════
+// API CLIENT
+// ═══════════════════════════════════════════
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${currentToken}`,
+      ...(options.headers || {}),
+    },
+  });
+  if (res.status === 401) { window.location.href = 'index.html'; return null; }
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) { showToast(data.detail || 'Erro na requisicao'); return null; }
+  return data;
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function navigate(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  el.classList.add('active');
+  if (page === 'listas')      renderListas();
+  if (page === 'trabalhadas') { trabalhadasDirty = false; renderTrabalhadas(); }
+}
+
+// ═══════════════════════════════════════════
+// PAGE 1 — SORTEIO
+// ═══════════════════════════════════════════
+let AGENCIAS_CACHE = [];
+let STATS_CACHE = {};
+let sorteioAtual = [];
+let trabalhadasDirty = false;
+let editandoListaId = null;
+let uploadArquivo = null;
+
+async function initSorteio() {
+  const ags = await apiFetch('/agencias');
+  if (!ags) return;
+  AGENCIAS_CACHE = ags;
+
+  // Popula UF
+  const ufs  = [...new Set(ags.map(a => a.uf).filter(Boolean))].sort();
+  const ddds = [...new Set(ags.map(a => a.ddd).filter(Boolean))].sort();
+  const selUF  = document.getElementById('fil-uf');
+  const selDDD = document.getElementById('fil-ddd');
+  ufs.forEach(v  => selUF.insertAdjacentHTML('beforeend',  `<option value="${v}">${v}</option>`));
+  ddds.forEach(v => selDDD.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
+
+  await applyFilters();
+}
+
+function onFilterUF() {
+  const uf = document.getElementById('fil-uf').value;
+  const selCidade = document.getElementById('fil-cidade');
+  selCidade.innerHTML = '<option value="">Todas</option>';
+  const subset  = AGENCIAS_CACHE.filter(a => !uf || a.uf === uf);
+  const cidades = [...new Set(subset.map(a => a.cidade).filter(Boolean))].sort();
+  cidades.forEach(v => selCidade.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
+  applyFilters();
+}
+
+function onFilterCidade() {
+  applyFilters();
+}
+
+function getFilters() {
+  return {
+    uf:     document.getElementById('fil-uf').value,
+    cidade: document.getElementById('fil-cidade').value,
+    ddd:    document.getElementById('fil-ddd').value,
+    ag:     document.getElementById('fil-ag').value,
+  };
+}
+
+async function applyFilters() {
+  const f = getFilters();
+  let label = '';
+  if (f.ag)          label = `Agencia ${f.ag}`;
+  else if (f.cidade) label = f.cidade;
+  else if (f.ddd)    label = `DDD ${f.ddd}`;
+  else if (f.uf)     label = `Estado ${f.uf}`;
+  else               label = 'Todas as agencias';
+  document.getElementById('filter-label').textContent = `Filtro: ${label}`;
+
+  // Agencias filtradas localmente
+  let ags = AGENCIAS_CACHE;
+  if (f.ag)          ags = ags.filter(a => a.codigo.startsWith(f.ag.trim()));
+  if (f.ddd)         ags = ags.filter(a => a.ddd === f.ddd);
+  if (f.cidade)      ags = ags.filter(a => a.cidade === f.cidade);
+  if (f.uf)          ags = ags.filter(a => a.uf === f.uf);
+
+  // Buscar stats de disponiveis do backend
+  const params = new URLSearchParams();
+  if (f.ag)     params.set('ag_codigo', f.ag);
+  else if (f.ddd)    params.set('ddd', f.ddd);
+  else if (f.cidade) params.set('cidade', f.cidade);
+  else if (f.uf)     params.set('uf', f.uf);
+
+  const stats = await apiFetch(`/sorteio/disponiveis?${params}`);
+  STATS_CACHE = stats ? stats.por_agencia : {};
+
+  // Só exibe agencias que têm contatos na lista
+  ags = ags.filter(a => STATS_CACHE[a.codigo] && STATS_CACHE[a.codigo].total > 0);
+
+  FILTERED_AGS = ags;
+  currentPage = 1;
+  renderAgenciasTable();
+  const total_disp = stats ? stats.total : 0;
+  const total_geral = ags.reduce((s, a) => {
+    const st = STATS_CACHE[a.codigo];
+    return s + (st ? st.total : 0);
+  }, 0);
+  document.getElementById('ag-count').textContent  = ags.length;
+  document.getElementById('ct-total').textContent  = total_geral;
+  document.getElementById('ct-disp').textContent   = `${total_disp} disponiveis`;
+  document.getElementById('disp-chip').innerHTML   = `Disponiveis: <strong>${total_disp}</strong>`;
+}
+
+function resetFilters() {
+  document.getElementById('fil-uf').value     = '';
+  document.getElementById('fil-cidade').innerHTML = '<option value="">Todas</option>';
+  document.getElementById('fil-ddd').value    = '';
+  document.getElementById('fil-ag').value     = '';
+  applyFilters();
+}
+
+const PAGE_SIZE = 50;
+let FILTERED_AGS = [];
+let currentPage  = 1;
+
+function renderAgenciasTable() {
+  const ags   = FILTERED_AGS;
+  const tbody = document.getElementById('ag-tbody');
+  tbody.innerHTML = '';
+
+  if (ags.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted)">Nenhuma agencia encontrada.</td></tr>`;
+    document.getElementById('ag-pagination').style.display = 'none';
+    return;
+  }
+
+  const totalPages = Math.ceil(ags.length / PAGE_SIZE);
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const slice = ags.slice(start, start + PAGE_SIZE);
+
+  slice.forEach(ag => {
+    const st   = STATS_CACHE[ag.codigo] || { total: 0, disponiveis: 0 };
+    const used = st.total - st.disponiveis;
+    const pct  = st.total ? Math.round((used / st.total) * 100) : 0;
+    const tr   = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="badge badge-red">${ag.codigo}</span></td>
+      <td style="font-weight:500">${ag.nome || '—'}</td>
+      <td>${ag.cidade || '—'}</td>
+      <td><span class="badge badge-gray">${ag.uf || '—'}</span></td>
+      <td>${ag.ddd || '—'}</td>
+      <td>${st.total}</td>
+      <td><strong style="color:${st.disponiveis===0&&st.total>0?'var(--muted)':'#059669'}">${st.disponiveis}</strong>
+        ${st.total>0?`<div class="prog-bar" style="width:72px;margin-top:4px"><div class="prog-bar-fill" style="width:${pct}%"></div></div>`:''}
+      </td>
+      <td>${used>0?`<span class="badge badge-yellow">${used}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Paginação
+  const pgBar = document.getElementById('ag-pagination');
+  if (totalPages > 1) {
+    pgBar.style.display = 'flex';
+    document.getElementById('pg-label').textContent = `Pagina ${currentPage} de ${totalPages}`;
+    document.getElementById('pg-range').textContent  = `${start + 1}–${Math.min(start + PAGE_SIZE, ags.length)} de ${ags.length} agencias`;
+    document.getElementById('pg-prev').disabled = currentPage === 1;
+    document.getElementById('pg-next').disabled = currentPage === totalPages;
+  } else {
+    pgBar.style.display = 'none';
+  }
+}
+
+function changePage(dir) {
+  currentPage += dir;
+  renderAgenciasTable();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function sortear() {
+  const qtd = parseInt(document.getElementById('qtd-input').value);
+  if (!qtd || qtd < 1) { showToast('Digite uma quantidade valida!'); return; }
+
+  const f   = getFilters();
+  const btn = document.getElementById('btn-sortear');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Sorteando...';
+
+  const body = { quantidade: qtd };
+  if (f.ag)          body.ag_codigo = f.ag;
+  else if (f.ddd)    body.ddd       = f.ddd;
+  else if (f.cidade) body.cidade    = f.cidade;
+  else if (f.uf)     body.uf        = f.uf;
+
+  const res = await apiFetch('/sorteio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg> Sortear`;
+  if (!res) return;
+
+  sorteioAtual = res.contatos;
+  document.getElementById('sorteio-txt').value   = sorteioAtual.map(c => c.raw).join('\n');
+  document.getElementById('sorteio-meta').textContent = `${sorteioAtual.length} contato(s) sorteado(s) · ${res.total_disponivel} disponivel(is) no filtro`;
+  document.getElementById('chk-marcar').checked  = false;
+  openModal('modal-sorteio');
+}
+
+async function confirmarSorteio() {
+  const marcar = document.getElementById('chk-marcar').checked;
+  const btn    = document.getElementById('btn-confirmar');
+  btn.disabled = true;
+
+  await apiFetch('/sorteio/confirmar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contato_ids: sorteioAtual.map(c => c.id),
+      marcar_usados: marcar,
+    }),
+  });
+
+  btn.disabled = false;
+  closeModal('modal-sorteio');
+  if (marcar) {
+    showToast(`${sorteioAtual.length} contato(s) marcado(s) como usados`);
+    trabalhadasDirty = true;
+    await applyFilters();
+  }
+}
+
+function copiarTexto(texto, callback) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(texto).then(callback).catch(() => copiarFallback(texto, callback));
+  } else {
+    copiarFallback(texto, callback);
+  }
+}
+
+function copiarFallback(texto, callback) {
+  const el = document.createElement('textarea');
+  el.value = texto;
+  el.style.position = 'fixed';
+  el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.select();
+  try { document.execCommand('copy'); callback(); }
+  catch { showToast('Selecione o texto e use Ctrl+C'); }
+  document.body.removeChild(el);
+}
+
+function copiarResultado() {
+  copiarTexto(document.getElementById('sorteio-txt').value, () => {
+    document.getElementById('chk-marcar').checked = true;
+    showToast('Copiado! Confirme para marcar como usados');
+  });
+}
+
+// ═══════════════════════════════════════════
+// PAGE 2 — LISTA ON
+// ═══════════════════════════════════════════
+async function renderListas() {
+  document.getElementById('listas-count-label').textContent = 'Carregando...';
+  const listas = await apiFetch('/listas');
+  if (!listas) return;
+
+  const tbody = document.getElementById('listas-tbody');
+  tbody.innerHTML = '';
+  const n = listas.length;
+  document.getElementById('listas-count-label').textContent =
+    `${n} lista${n !== 1 ? 's' : ''} cadastrada${n !== 1 ? 's' : ''}`;
+  document.getElementById('badge-listas').textContent = n;
+
+  if (n === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Nenhuma lista cadastrada.<br>Faca o upload de uma lista .txt para comecar.</p></div></td></tr>`;
+    return;
+  }
+
+  listas.forEach(l => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><a href="javascript:void(0)" onclick="verLista('${l.id}','${l.nome.replace(/'/g,'\\\'')}')"
+             style="color:var(--red);font-weight:600;text-decoration:none">${l.nome}</a></td>
+      <td style="color:var(--muted);font-size:.82rem">${formatDate(l.criado_em)}</td>
+      <td>${l.total_contatos}</td>
+      <td>${l.total_agencias}</td>
+      <td>${l.total_usados > 0 ? `<span class="badge badge-yellow">${l.total_usados}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="editarNomeLista('${l.id}','${l.nome.replace(/'/g,'\\\'')}')">Renomear</button>
+          <button class="btn btn-secondary btn-sm" onclick="verLista('${l.id}','${l.nome.replace(/'/g,'\\\'')}')">Ver</button>
+          <button class="btn btn-danger btn-sm" onclick="excluirLista('${l.id}')">Excluir</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function verLista(id, nome) {
+  document.getElementById('modal-lista-nome').textContent = nome;
+  document.getElementById('modal-lista-meta').textContent = 'Carregando...';
+  document.getElementById('modal-lista-txt').value = '';
+  openModal('modal-lista-view');
+
+  const res = await apiFetch(`/listas/${id}/contatos`);
+  if (!res) return;
+
+  const l = res.lista;
+  document.getElementById('modal-lista-meta').textContent =
+    `Upload: ${formatDate(l.criado_em)} · ${res.contatos.length} contatos`;
+  document.getElementById('modal-lista-txt').value = res.raw;
+}
+
+function editarNomeLista(id, nomeAtual) {
+  editandoListaId = id;
+  document.getElementById('input-novo-nome').value = nomeAtual;
+  openModal('modal-edit-nome');
+}
+
+async function salvarNomeLista() {
+  const nome = document.getElementById('input-novo-nome').value.trim();
+  if (!nome) return;
+  const res = await apiFetch(`/listas/${editandoListaId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome }),
+  });
+  closeModal('modal-edit-nome');
+  if (res) { showToast('Nome atualizado'); renderListas(); }
+}
+
+async function excluirLista(id) {
+  if (!confirm('Excluir esta lista? Esta acao nao pode ser desfeita.')) return;
+  await apiFetch(`/listas/${id}`, { method: 'DELETE' });
+  showToast('Lista excluida.');
+  renderListas();
+}
+
+function handleUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  uploadArquivo = file;
+  document.getElementById('upload-nome').value = file.name.replace(/\.txt$/i, '');
+  document.getElementById('upload-arquivo-nome').textContent = `Arquivo: ${file.name}`;
+  openModal('modal-upload');
+  event.target.value = '';
+}
+
+async function confirmarUpload() {
+  const nome = document.getElementById('upload-nome').value.trim();
+  if (!nome) { showToast('Digite um nome para a lista'); return; }
+  if (!uploadArquivo) return;
+
+  const btn = document.getElementById('btn-upload-confirmar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enviando...';
+
+  const fd = new FormData();
+  fd.append('nome', nome);
+  fd.append('arquivo', uploadArquivo);
+
+  const res = await apiFetch('/listas', { method: 'POST', body: fd });
+  btn.disabled = false;
+  btn.textContent = 'Enviar lista';
+  closeModal('modal-upload');
+  if (res) {
+    showToast(`"${res.nome}" importada com ${res.total_contatos} contatos`);
+    renderListas();
+  }
+}
+
+function copiarLista() {
+  copiarTexto(document.getElementById('modal-lista-txt').value, () => showToast('Lista copiada'));
+}
+
+// ═══════════════════════════════════════════
+// PAGE 3 — TRABALHADAS
+// ═══════════════════════════════════════════
+async function renderTrabalhadas() {
+  const data = await apiFetch('/trabalhadas');
+  if (!data) return;
+
+  const tbody = document.getElementById('trab-tbody');
+  tbody.innerHTML = '';
+
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Nenhuma agencia trabalhada ainda.<br>Sorteie contatos e marque-os como usados.</p></div></td></tr>`;
+    document.getElementById('stat-ags').textContent = '0';
+    document.getElementById('stat-cts').textContent = '0';
+    document.getElementById('stat-last').textContent = '—';
+    return;
+  }
+
+  data.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="badge badge-red">${t.ag_codigo}</span></td>
+      <td style="font-weight:500">${t.ag_nome || '—'}</td>
+      <td>${t.cidade || '—'}</td>
+      <td><span class="badge badge-gray">${t.uf || '—'}</span></td>
+      <td><strong>${t.qtd_usados}</strong></td>
+      <td style="color:var(--muted);font-size:.82rem">${formatDate(t.data)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const totalUsados = data.reduce((s, t) => s + t.qtd_usados, 0);
+  document.getElementById('stat-ags').textContent = data.length;
+  document.getElementById('stat-cts').textContent = totalUsados;
+  if (data[0]) {
+    document.getElementById('stat-last').textContent     = formatDate(data[0].data);
+    document.getElementById('stat-last-sub').textContent = `${data[0].ag_nome} · ${data[0].qtd_usados} contatos`;
+  }
+}
+
+// ═══════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
+});
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function formatDate(d) {
+  if (!d) return '—';
+  // Pega só os primeiros 10 chars (YYYY-MM-DD) e formata sem passar por Date,
+  // evitando o bug de timezone do JS onde "2026-04-24" vira 23/04 em UTC-3
+  const parte = d.substring(0, 10);
+  const [y, m, day] = parte.split('-');
+  return day ? `${day}/${m}/${y}` : d;
+}
+
+let toastTimer;
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+(async () => {
+  const ok = await initAuth();
+  if (!ok) return;
+  await initSorteio();
+})();
+</script>
+</body>
+</html>
