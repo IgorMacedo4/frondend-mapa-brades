@@ -131,6 +131,7 @@ tr:hover td { background: #fafbfd; }
 /* ── SPINNER ── */
 .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes progress-pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
 .spinner-dark { border-color: rgba(0,0,0,.1); border-top-color: var(--red); }
 
 /* ── TOAST ── */
@@ -367,9 +368,15 @@ tr:hover td { background: #fafbfd; }
         <input type="text" id="upload-nome" style="min-width:unset;width:100%" placeholder="Ex: Lista BH Maio 2026">
       </div>
       <div id="upload-arquivo-nome" style="font-size:.82rem;color:var(--muted)"></div>
+      <div id="upload-progress-wrap" style="display:none;margin-top:14px">
+        <div id="upload-progress-label" style="font-size:.82rem;color:var(--muted);margin-bottom:5px">Enviando arquivo...</div>
+        <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden">
+          <div id="upload-progress-bar" style="height:100%;width:0%;background:var(--primary);transition:width .25s ease"></div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modal-upload')" style="margin-left:auto">Cancelar</button>
+      <button class="btn btn-secondary" id="btn-upload-cancelar" onclick="closeModal('modal-upload')" style="margin-left:auto">Cancelar</button>
       <button class="btn btn-primary" id="btn-upload-confirmar" onclick="confirmarUpload()">Enviar lista</button>
     </div>
   </div>
@@ -774,27 +781,71 @@ function handleUpload(event) {
   event.target.value = '';
 }
 
-async function confirmarUpload() {
+function confirmarUpload() {
   const nome = document.getElementById('upload-nome').value.trim();
   if (!nome) { showToast('Digite um nome para a lista'); return; }
   if (!uploadArquivo) return;
 
-  const btn = document.getElementById('btn-upload-confirmar');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Enviando...';
+  const btn    = document.getElementById('btn-upload-confirmar');
+  const btnCan = document.getElementById('btn-upload-cancelar');
+  const wrap   = document.getElementById('upload-progress-wrap');
+  const bar    = document.getElementById('upload-progress-bar');
+  const label  = document.getElementById('upload-progress-label');
+
+  btn.disabled    = true;
+  btnCan.disabled = true;
+  btn.textContent = 'Enviando...';
+  wrap.style.display = 'block';
+  bar.style.width    = '0%';
+  label.textContent  = 'Enviando arquivo...';
 
   const fd = new FormData();
   fd.append('nome', nome);
   fd.append('arquivo', uploadArquivo);
 
-  const res = await apiFetch('/listas', { method: 'POST', body: fd });
-  btn.disabled = false;
-  btn.textContent = 'Enviar lista';
-  closeModal('modal-upload');
-  if (res) {
-    showToast(`"${res.nome}" importada com ${res.total_contatos} contatos`);
-    renderListas();
-  }
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', `${API}/listas`);
+  if (currentToken) xhr.setRequestHeader('Authorization', `Bearer ${currentToken}`);
+
+  xhr.upload.onprogress = (e) => {
+    if (!e.lengthComputable) return;
+    const pct = Math.round((e.loaded / e.total) * 100);
+    bar.style.width   = pct + '%';
+    label.textContent = `Enviando arquivo... ${pct}%`;
+    if (pct === 100) {
+      label.textContent = 'Processando contatos no servidor...';
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+      bar.style.animation = 'progress-pulse 1.2s ease-in-out infinite';
+    }
+  };
+
+  xhr.onload = () => {
+    btn.disabled    = false;
+    btnCan.disabled = false;
+    btn.textContent = 'Enviar lista';
+    wrap.style.display = 'none';
+    bar.style.animation = '';
+    bar.style.transition = 'width .25s ease';
+    if (xhr.status >= 200 && xhr.status < 300) {
+      const res = JSON.parse(xhr.responseText);
+      closeModal('modal-upload');
+      showToast(`"${res.nome}" importada com ${res.total_contatos} contatos`);
+      renderListas();
+    } else {
+      showToast('Erro ao importar lista');
+    }
+  };
+
+  xhr.onerror = () => {
+    btn.disabled    = false;
+    btnCan.disabled = false;
+    btn.textContent = 'Enviar lista';
+    wrap.style.display = 'none';
+    showToast('Erro de conexao ao enviar');
+  };
+
+  xhr.send(fd);
 }
 
 function copiarLista() {
