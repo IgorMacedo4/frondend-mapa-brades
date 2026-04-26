@@ -194,7 +194,7 @@ tr:hover td { background: #fafbfd; }
           </div>
           <div class="field">
             <label>DDD</label>
-            <select id="fil-ddd" onchange="applyFilters()"><option value="">Todos</option></select>
+            <input type="text" id="fil-ddd" inputmode="numeric" maxlength="3" placeholder="Ex: 11" oninput="this.value=this.value.replace(/\D/g,'');applyFilters()" style="min-width:80px;max-width:80px">
           </div>
           <div class="field">
             <label>Agencia especifica</label>
@@ -465,11 +465,8 @@ async function initSorteio() {
 
   // Popula UF
   const ufs  = [...new Set(ags.map(a => a.uf).filter(Boolean))].sort();
-  const ddds = [...new Set(ags.map(a => a.ddd).filter(Boolean))].sort();
-  const selUF  = document.getElementById('fil-uf');
-  const selDDD = document.getElementById('fil-ddd');
-  ufs.forEach(v  => selUF.insertAdjacentHTML('beforeend',  `<option value="${v}">${v}</option>`));
-  ddds.forEach(v => selDDD.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
+  const selUF = document.getElementById('fil-uf');
+  ufs.forEach(v => selUF.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
 
   await applyFilters();
 }
@@ -492,7 +489,7 @@ function getFilters() {
   return {
     uf:     document.getElementById('fil-uf').value,
     cidade: document.getElementById('fil-cidade').value,
-    ddd:    document.getElementById('fil-ddd').value,
+    ddd:    document.getElementById('fil-ddd').value.replace(/\D/g, ''),
     ag:     document.getElementById('fil-ag').value,
   };
 }
