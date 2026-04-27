@@ -1037,15 +1037,16 @@ async function removerSelecionados() {
   const codigos = [...document.querySelectorAll('.col-check:checked')].map(c => c.value);
   if (!codigos.length) return;
   if (!confirm(`Remover ${codigos.length} agencia(s) selecionada(s)?`)) return;
-  const res = await apiFetch('/coletadas/remover-varios', {
+  const btn = document.getElementById('btn-apagar-sel');
+  btn.disabled = true;
+  btn.textContent = 'Apagando...';
+  await apiFetch('/coletadas/remover-varios', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ codigos }),
   });
-  if (res !== null) {
-    showToast(`${codigos.length} agencia(s) removida(s)`);
-    renderColetadas();
-  }
+  showToast(`${codigos.length} agencia(s) removida(s)`);
+  await renderColetadas();
 }
 
 function buscarColetada() {
@@ -1096,11 +1097,9 @@ async function importarColetadas(input) {
 
 async function removerColetada(codigo) {
   if (!confirm(`Remover agencia ${codigo} das coletadas?`)) return;
-  const ok = await apiFetch(`/coletadas/${codigo}`, { method: 'DELETE' });
-  if (ok !== null) {
-    showToast(`Agencia ${codigo} removida`);
-    renderColetadas();
-  }
+  await apiFetch(`/coletadas/${codigo}`, { method: 'DELETE' });
+  showToast(`Agencia ${codigo} removida`);
+  await renderColetadas();
 }
 
 // ═══════════════════════════════════════════
