@@ -997,8 +997,13 @@ async function renderColetadas() {
 function _renderColTabela(lista) {
   const tbody = document.getElementById('col-tbody');
   lista = [...lista].sort((a, b) => parseInt(a.codigo) - parseInt(b.codigo));
+  // Limpa tbody antes de verificar checkboxes, para evitar estado travado
+  tbody.innerHTML = '';
   document.getElementById('col-check-all').checked = false;
-  _atualizarBtnApagar();
+  const btnApagar = document.getElementById('btn-apagar-sel');
+  btnApagar.style.display = 'none';
+  btnApagar.disabled = false;
+  btnApagar.innerHTML = 'Apagar selecionados (<span id="col-sel-count">0</span>)';
   if (!lista.length) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><p>Nenhuma agencia coletada ainda.</p></div></td></tr>`;
     return;
