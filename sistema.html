@@ -319,8 +319,9 @@ tr:hover td { background: #fafbfd; }
       </div>
 
       <!-- Acoes -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
         <span id="col-total" style="font-size:.85rem;color:var(--muted)">—</span>
+        <button id="btn-apagar-sel" class="btn btn-secondary" style="display:none;color:var(--red);border-color:var(--red)" onclick="removerSelecionados()">Apagar selecionados (<span id="col-sel-count">0</span>)</button>
         <div style="margin-left:auto;display:flex;gap:8px">
           <label class="btn btn-secondary" style="cursor:pointer">
             Importar .txt
@@ -334,7 +335,10 @@ tr:hover td { background: #fafbfd; }
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Codigo</th><th>Nome</th><th>Cidade</th><th>UF</th><th>Cadastrado em</th><th></th></tr>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="col-check-all" onchange="toggleSelecionarTodos(this.checked)" title="Selecionar todos"></th>
+                <th>Codigo</th><th>Nome</th><th>Cidade</th><th>UF</th><th>Cadastrado em</th><th></th>
+              </tr>
             </thead>
             <tbody id="col-tbody"></tbody>
           </table>
@@ -993,8 +997,10 @@ async function renderColetadas() {
 function _renderColTabela(lista) {
   const tbody = document.getElementById('col-tbody');
   lista = [...lista].sort((a, b) => parseInt(a.codigo) - parseInt(b.codigo));
+  document.getElementById('col-check-all').checked = false;
+  _atualizarBtnApagar();
   if (!lista.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Nenhuma agencia coletada ainda.</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><p>Nenhuma agencia coletada ainda.</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = lista.map(c => {
@@ -1004,6 +1010,7 @@ function _renderColTabela(lista) {
     const uf     = ag ? ag.uf     : '—';
     const data   = formatDate(c.cadastrado_em);
     return `<tr>
+      <td><input type="checkbox" class="col-check" value="${c.codigo}" onchange="_atualizarBtnApagar()"></td>
       <td><strong>${c.codigo}</strong></td>
       <td>${nome}</td>
       <td>${cidade}</td>
@@ -1012,6 +1019,33 @@ function _renderColTabela(lista) {
       <td><button class="btn btn-sm" style="color:var(--red);background:none;border:none;cursor:pointer;padding:2px 6px;font-size:.8rem" onclick="removerColetada('${c.codigo}')">Remover</button></td>
     </tr>`;
   }).join('');
+}
+
+function _atualizarBtnApagar() {
+  const sels = document.querySelectorAll('.col-check:checked');
+  const btn  = document.getElementById('btn-apagar-sel');
+  document.getElementById('col-sel-count').textContent = sels.length;
+  btn.style.display = sels.length > 0 ? '' : 'none';
+}
+
+function toggleSelecionarTodos(checked) {
+  document.querySelectorAll('.col-check').forEach(c => c.checked = checked);
+  _atualizarBtnApagar();
+}
+
+async function removerSelecionados() {
+  const codigos = [...document.querySelectorAll('.col-check:checked')].map(c => c.value);
+  if (!codigos.length) return;
+  if (!confirm(`Remover ${codigos.length} agencia(s) selecionada(s)?`)) return;
+  const res = await apiFetch('/coletadas/remover-varios', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigos }),
+  });
+  if (res !== null) {
+    showToast(`${codigos.length} agencia(s) removida(s)`);
+    renderColetadas();
+  }
 }
 
 function buscarColetada() {
