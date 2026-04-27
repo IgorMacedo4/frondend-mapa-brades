@@ -992,6 +992,7 @@ async function renderColetadas() {
 
 function _renderColTabela(lista) {
   const tbody = document.getElementById('col-tbody');
+  lista = [...lista].sort((a, b) => parseInt(a.codigo) - parseInt(b.codigo));
   if (!lista.length) {
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Nenhuma agencia coletada ainda.</p></div></td></tr>`;
     return;
