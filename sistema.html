@@ -165,6 +165,10 @@ tr:hover td { background: #fafbfd; }
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       Agencias Trabalhadas
     </a>
+    <a class="nav-item" href="javascript:void(0)" onclick="navigate('coletadas',this)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Agencias Coletadas
+    </a>
   </nav>
   <div class="sidebar-footer">
     <div class="user-info" id="user-email">—</div>
@@ -286,6 +290,53 @@ tr:hover td { background: #fafbfd; }
           </table>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- PAGE 4: COLETADAS -->
+  <div class="page" id="page-coletadas">
+    <div class="page-header">
+      <h2>Agencias Coletadas</h2>
+      <p>Registro de agencias que ja foram colhidas no checker. Consulte antes de iniciar uma nova coleta.</p>
+    </div>
+    <div class="page-body">
+
+      <!-- Busca -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div class="field" style="margin:0;flex:0 0 auto">
+            <label>Consultar agencia</label>
+            <input type="text" id="col-busca" inputmode="numeric" maxlength="4" placeholder="Ex: 0123"
+              oninput="this.value=this.value.replace(/\D/g,'');buscarColetada()"
+              style="min-width:120px;max-width:140px;font-size:1rem">
+          </div>
+          <div id="col-resultado" style="margin-top:18px;font-size:.95rem;font-weight:600"></div>
+        </div>
+      </div>
+
+      <!-- Acoes -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span id="col-total" style="font-size:.85rem;color:var(--muted)">—</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <label class="btn btn-secondary" style="cursor:pointer">
+            Importar .txt
+            <input type="file" accept=".txt" style="display:none" onchange="importarColetadas(this)">
+          </label>
+        </div>
+      </div>
+
+      <!-- Tabela -->
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Codigo</th><th>Nome</th><th>Cidade</th><th>UF</th><th>Cadastrado em</th><th></th></tr>
+            </thead>
+            <tbody id="col-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -446,6 +497,7 @@ function navigate(page, el) {
   el.classList.add('active');
   if (page === 'listas')      renderListas();
   if (page === 'trabalhadas') { trabalhadasDirty = false; renderTrabalhadas(); }
+  if (page === 'coletadas')   renderColetadas();
 }
 
 // ═══════════════════════════════════════════
@@ -917,6 +969,82 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════
+// PAGE 4 — COLETADAS
+// ═══════════════════════════════════════════
+let COLETADAS_CACHE = [];
+
+async function renderColetadas() {
+  const data = await apiFetch('/coletadas');
+  if (!data) return;
+  COLETADAS_CACHE = data;
+  document.getElementById('col-total').textContent = `${data.length} agencias coletadas`;
+  _renderColTabela(data);
+  document.getElementById('col-busca').value = '';
+  document.getElementById('col-resultado').textContent = '';
+}
+
+function _renderColTabela(lista) {
+  const tbody = document.getElementById('col-tbody');
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Nenhuma agencia coletada ainda.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = lista.map(c => {
+    const ag = AGENCIAS_CACHE.find(a => a.codigo === c.codigo);
+    const nome   = ag ? ag.nome   : '—';
+    const cidade = ag ? ag.cidade : '—';
+    const uf     = ag ? ag.uf     : '—';
+    const data   = formatDate(c.cadastrado_em);
+    return `<tr>
+      <td><strong>${c.codigo}</strong></td>
+      <td>${nome}</td>
+      <td>${cidade}</td>
+      <td>${uf}</td>
+      <td>${data}</td>
+      <td><button class="btn btn-sm" style="color:var(--red);background:none;border:none;cursor:pointer;padding:2px 6px;font-size:.8rem" onclick="removerColetada('${c.codigo}')">Remover</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function buscarColetada() {
+  const cod = document.getElementById('col-busca').value.replace(/\D/g, '').padStart(4, '0');
+  const res = document.getElementById('col-resultado');
+  if (cod.length < 4 || cod === '0000') { res.textContent = ''; return; }
+  const encontrada = COLETADAS_CACHE.find(c => c.codigo === cod);
+  if (encontrada) {
+    const data = formatDate(encontrada.cadastrado_em);
+    res.style.color = 'var(--red)';
+    res.textContent = `Agencia ${cod} — JA COLETADA (desde ${data})`;
+  } else {
+    res.style.color = 'var(--green, #16a34a)';
+    res.textContent = `Agencia ${cod} — Livre para coletar`;
+  }
+}
+
+async function importarColetadas(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('arquivo', file);
+  input.value = '';
+  showToast('Importando...');
+  const res = await apiFetch('/coletadas/importar', { method: 'POST', body: fd });
+  if (res) {
+    showToast(`${res.importadas} agencias importadas`);
+    renderColetadas();
+  }
+}
+
+async function removerColetada(codigo) {
+  if (!confirm(`Remover agencia ${codigo} das coletadas?`)) return;
+  const ok = await apiFetch(`/coletadas/${codigo}`, { method: 'DELETE' });
+  if (ok !== null) {
+    showToast(`Agencia ${codigo} removida`);
+    renderColetadas();
+  }
 }
 
 // ═══════════════════════════════════════════
