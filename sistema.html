@@ -305,10 +305,14 @@ tr:hover td { background: #fafbfd; }
       <div class="card" style="margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div class="field" style="margin:0;flex:0 0 auto">
-            <label>Consultar agencia</label>
-            <input type="text" id="col-busca" inputmode="numeric" maxlength="4" placeholder="Ex: 0123"
-              oninput="this.value=this.value.replace(/\D/g,'');buscarColetada()"
-              style="min-width:120px;max-width:140px;font-size:1rem">
+            <label>Consultar / Adicionar agencia</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="text" id="col-busca" inputmode="numeric" maxlength="4" placeholder="Ex: 0123"
+                oninput="this.value=this.value.replace(/\D/g,'');buscarColetada()"
+                onkeydown="if(event.key==='Enter')adicionarColetadaManual()"
+                style="min-width:120px;max-width:140px;font-size:1rem">
+              <button class="btn btn-primary" onclick="adicionarColetadaManual()" style="margin-top:0;white-space:nowrap">Adicionar</button>
+            </div>
           </div>
           <div id="col-resultado" style="margin-top:18px;font-size:.95rem;font-weight:600"></div>
         </div>
@@ -1021,6 +1025,23 @@ function buscarColetada() {
   } else {
     res.style.color = 'var(--green, #16a34a)';
     res.textContent = `Agencia ${cod} — Livre para coletar`;
+  }
+}
+
+async function adicionarColetadaManual() {
+  const raw = document.getElementById('col-busca').value.replace(/\D/g, '');
+  if (!raw) { showToast('Digite um codigo de agencia'); return; }
+  const codigo = raw.padStart(4, '0');
+  const res = await apiFetch('/coletadas/adicionar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigo }),
+  });
+  if (res) {
+    showToast(`Agencia ${codigo} adicionada`);
+    document.getElementById('col-busca').value = '';
+    document.getElementById('col-resultado').textContent = '';
+    renderColetadas();
   }
 }
 
